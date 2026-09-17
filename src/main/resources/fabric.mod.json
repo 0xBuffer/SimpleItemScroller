@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "simple-item-scroller",
+  "version": "${version}",
+  "name": "Simple Item Scroller",
+  "description": "Hold Shift + Left Click and drag over inventory slots to quick-move items automatically.",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.simpleitemscroller.SimpleItemScrollerMod"
+    ],
+    "modmenu": [
+      "com.simpleitemscroller.compat.ModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "simple-item-scroller.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}
