@@ -2,7 +2,6 @@ package com.simpleitemscroller;
 
 import com.simpleitemscroller.config.Config;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Util;
@@ -15,10 +14,7 @@ public final class ItemScroller {
     private ItemScroller() {
     }
 
-    public static void onHover(MinecraftClient client, ScreenHandler handler, Slot slot) {
-        if (slot == null || !slot.hasStack() || slot.id < 0) {
-            return;
-        }
+    public static void onHover(MinecraftClient client, Slot slot) {
         if (client.player == null || client.interactionManager == null) {
             return;
         }
@@ -33,6 +29,9 @@ public final class ItemScroller {
             lastSlotId = -1;
             return;
         }
+        if (slot == null || !slot.hasStack() || slot.id < 0) {
+            return;
+        }
         if (slot.id == lastSlotId) {
             return;
         }
@@ -42,6 +41,6 @@ public final class ItemScroller {
         }
         lastClickTime = now;
         lastSlotId = slot.id;
-        client.interactionManager.clickSlot(handler.syncId, slot.id, 0, SlotActionType.QUICK_MOVE, client.player);
+        client.interactionManager.clickSlot(client.player.currentScreenHandler.syncId, slot.id, 0, SlotActionType.QUICK_MOVE, client.player);
     }
 }
