@@ -9,7 +9,7 @@ import java.nio.file.Path;
 
 public final class Config {
     public static boolean enabled = true;
-    public static int delayMs = 50;
+    public static int delayMs = 0;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("simple-item-scroller.json");
@@ -47,6 +47,6 @@ public final class Config {
 
     private static class Data {
         public boolean enabled = true;
-        public int delayMs = 50;
+        public int delayMs = 0;
     }
 }

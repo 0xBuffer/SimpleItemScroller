@@ -4,8 +4,14 @@
   "version": "${version}",
   "name": "Simple Item Scroller",
   "description": "Hold Shift + Left Click and drag over inventory slots to quick-move items automatically.",
-  "authors": [],
-  "contact": {},
+  "authors": [
+    "0xBuffer"
+  ],
+  "contact": {
+    "homepage": "https://github.com/0xBuffer/SimpleItemScroller",
+    "sources": "https://github.com/0xBuffer/SimpleItemScroller",
+    "issues": "https://github.com/0xBuffer/SimpleItemScroller/issues"
+  },
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
