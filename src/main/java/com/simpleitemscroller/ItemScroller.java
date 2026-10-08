@@ -1,11 +1,11 @@
 package com.simpleitemscroller;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.simpleitemscroller.config.Config;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
+import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 public final class ItemScroller {
     private static final Logger LOGGER = LoggerFactory.getLogger("simple-item-scroller");
     private static final ArrayDeque<Slot> pendingSlots = new ArrayDeque<>();
-    private static ScreenHandler activeHandler;
+    private static AbstractContainerMenu activeHandler;
     private static boolean active;
     private static long nextClickTime;
     private static Slot observedSlot;
@@ -25,22 +25,22 @@ public final class ItemScroller {
     private ItemScroller() {
     }
 
-    public static void onMouseClicked(MinecraftClient client, ScreenHandler handler, Slot slot, int button, boolean shift) {
-        if (!Config.enabled || button != GLFW.GLFW_MOUSE_BUTTON_LEFT || !shift) {
+    public static void onMouseClicked(Minecraft client, AbstractContainerMenu handler, Slot slot, int button, boolean shift) {
+        if (!Config.enabled || button != InputConstants.MOUSE_BUTTON_LEFT || !shift) {
             reset();
             return;
         }
         start(handler);
-        LOGGER.debug("SIS screen: type={}, creative={}", client.currentScreen == null ? "none" : client.currentScreen.getClass().getSimpleName(), client.player != null && client.player.isInCreativeMode());
-        if (slot != null && slot.id >= 0) {
+        LOGGER.debug("SIS screen: type={}, creative={}", client.gui.screen() == null ? "none" : client.gui.screen().getClass().getSimpleName(), client.player != null && client.player.isCreative());
+        if (slot != null && slot.index >= 0) {
             lastTriggeredSlot = slot;
             triggeredSlots = 1;
-            nextClickTime = Util.getMeasuringTimeMs() + Config.delayMs;
+            nextClickTime = Util.getMillis() + Config.delayMs;
         }
     }
 
-    public static void onMouseDragged(MinecraftClient client, ScreenHandler handler, Slot slot, int button, boolean shift, Consumer<Slot> quickMove) {
-        if (!canUse(client) || button != GLFW.GLFW_MOUSE_BUTTON_LEFT || !shift) {
+    public static void onMouseDragged(Minecraft client, AbstractContainerMenu handler, Slot slot, int button, boolean shift, Consumer<Slot> quickMove) {
+        if (!canUse(client) || button != InputConstants.MOUSE_BUTTON_LEFT || !shift) {
             reset();
             return;
         }
@@ -52,7 +52,7 @@ public final class ItemScroller {
         process(handler, quickMove);
     }
 
-    public static void onFrame(MinecraftClient client, ScreenHandler handler, Slot slot, Consumer<Slot> quickMove) {
+    public static void onFrame(Minecraft client, AbstractContainerMenu handler, Slot slot, Consumer<Slot> quickMove) {
         if (!active) {
             return;
         }
@@ -72,11 +72,11 @@ public final class ItemScroller {
         reset();
     }
 
-    private static boolean canUse(MinecraftClient client) {
-        return Config.enabled && client.player != null && client.interactionManager != null;
+    private static boolean canUse(Minecraft client) {
+        return Config.enabled && client.player != null && client.gameMode != null;
     }
 
-    private static void start(ScreenHandler handler) {
+    private static void start(AbstractContainerMenu handler) {
         pendingSlots.clear();
         activeHandler = handler;
         active = true;
@@ -84,34 +84,34 @@ public final class ItemScroller {
         observedSlot = null;
         lastTriggeredSlot = null;
         triggeredSlots = 0;
-        LOGGER.debug("SIS gesture started: syncId={}", handler.syncId);
+        LOGGER.debug("SIS gesture started: syncId={}", handler.containerId);
     }
 
     private static void observe(Slot slot, String source) {
         if (slot != observedSlot) {
             observedSlot = slot;
-            LOGGER.debug("SIS hover: source={}, slot={}, hasStack={}", source, slot == null ? -1 : slot.id, slot != null && slot.hasStack());
+            LOGGER.debug("SIS hover: source={}, slot={}, hasStack={}", source, slot == null ? -1 : slot.index, slot != null && slot.hasItem());
         }
     }
 
     private static void enqueue(Slot slot) {
-        if (slot == null || slot.id < 0 || slot == lastTriggeredSlot) {
+        if (slot == null || slot.index < 0 || slot == lastTriggeredSlot) {
             return;
         }
         lastTriggeredSlot = slot;
-        if (slot.hasStack()) {
+        if (slot.hasItem()) {
             pendingSlots.addLast(slot);
             triggeredSlots++;
-            LOGGER.debug("SIS slot queued: id={}, pending={}", slot.id, pendingSlots.size());
+            LOGGER.debug("SIS slot queued: id={}, pending={}", slot.index, pendingSlots.size());
         }
     }
 
-    private static void process(ScreenHandler handler, Consumer<Slot> quickMove) {
+    private static void process(AbstractContainerMenu handler, Consumer<Slot> quickMove) {
         process(handler, quickMove, false);
     }
 
-    private static void process(ScreenHandler handler, Consumer<Slot> quickMove, boolean flush) {
-        long now = Util.getMeasuringTimeMs();
+    private static void process(AbstractContainerMenu handler, Consumer<Slot> quickMove, boolean flush) {
+        long now = Util.getMillis();
         int delay = Math.max(0, Config.delayMs);
         if (!flush && now < nextClickTime) {
             return;
@@ -124,10 +124,10 @@ public final class ItemScroller {
         }
         while (allowance > 0 && !pendingSlots.isEmpty()) {
             Slot slot = pendingSlots.removeFirst();
-            if (slot.id < 0 || !slot.hasStack()) {
+            if (slot.index < 0 || !slot.hasItem()) {
                 continue;
             }
-            LOGGER.debug("SIS quick move: syncId={}, slot={}", handler.syncId, slot.id);
+            LOGGER.debug("SIS quick move: syncId={}, slot={}", handler.containerId, slot.index);
             quickMove.accept(slot);
             allowance--;
             nextClickTime = delay == 0 ? now : Math.max(nextClickTime, now) + delay;

@@ -1,13 +1,13 @@
 package com.simpleitemscroller.mixin;
 
 import com.simpleitemscroller.ItemScroller;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(HandledScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class HandledScreenMixin {
     @Unique
     private double simpleitemscroller$lastMouseX;
@@ -29,49 +29,49 @@ public abstract class HandledScreenMixin {
     private boolean simpleitemscroller$hasLastMouse;
 
     @Shadow
-    protected ScreenHandler handler;
+    protected AbstractContainerMenu menu;
 
     @Shadow
-    protected abstract void onMouseClick(Slot slot, int slotId, int button, SlotActionType actionType);
+    protected abstract void slotClicked(Slot slot, int slotId, int button, ContainerInput containerInput);
 
-    @Invoker("getSlotAt")
+    @Invoker("getHoveredSlot")
     public abstract Slot simpleitemscroller$getSlotAt(double mouseX, double mouseY);
 
     @Inject(method = "mouseClicked", at = @At("HEAD"))
-    private void simpleitemscroller$onMouseClicked(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        ItemScroller.onMouseClicked(MinecraftClient.getInstance(), this.handler, this.simpleitemscroller$getSlotAt(click.x(), click.y()), click.button(), click.hasShift());
-        this.simpleitemscroller$lastMouseX = click.x();
-        this.simpleitemscroller$lastMouseY = click.y();
-        this.simpleitemscroller$hasLastMouse = click.button() == 0 && click.hasShift();
+    private void simpleitemscroller$onMouseClicked(MouseButtonEvent event, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        ItemScroller.onMouseClicked(Minecraft.getInstance(), this.menu, this.simpleitemscroller$getSlotAt(event.x(), event.y()), event.button(), event.hasShiftDown());
+        this.simpleitemscroller$lastMouseX = event.x();
+        this.simpleitemscroller$lastMouseY = event.y();
+        this.simpleitemscroller$hasLastMouse = event.button() == 0 && event.hasShiftDown();
     }
 
     @Inject(method = "mouseDragged", at = @At("RETURN"))
-    private void simpleitemscroller$onMouseDragged(Click click, double offsetX, double offsetY, CallbackInfoReturnable<Boolean> cir) {
-        double startX = this.simpleitemscroller$hasLastMouse ? this.simpleitemscroller$lastMouseX : click.x();
-        double startY = this.simpleitemscroller$hasLastMouse ? this.simpleitemscroller$lastMouseY : click.y();
-        double distanceX = click.x() - startX;
-        double distanceY = click.y() - startY;
+    private void simpleitemscroller$onMouseDragged(MouseButtonEvent event, double offsetX, double offsetY, CallbackInfoReturnable<Boolean> cir) {
+        double startX = this.simpleitemscroller$hasLastMouse ? this.simpleitemscroller$lastMouseX : event.x();
+        double startY = this.simpleitemscroller$hasLastMouse ? this.simpleitemscroller$lastMouseY : event.y();
+        double distanceX = event.x() - startX;
+        double distanceY = event.y() - startY;
         int steps = Math.max(1, (int) Math.ceil(Math.hypot(distanceX, distanceY) / 3.0));
         for (int i = 1; i <= steps; i++) {
             double progress = (double) i / steps;
             double mouseX = startX + distanceX * progress;
             double mouseY = startY + distanceY * progress;
-            ItemScroller.onMouseDragged(MinecraftClient.getInstance(), this.handler, this.simpleitemscroller$getSlotAt(mouseX, mouseY), click.button(), click.hasShift(), this::simpleitemscroller$quickMove);
+            ItemScroller.onMouseDragged(Minecraft.getInstance(), this.menu, this.simpleitemscroller$getSlotAt(mouseX, mouseY), event.button(), event.hasShiftDown(), this::simpleitemscroller$quickMove);
         }
-        this.simpleitemscroller$lastMouseX = click.x();
-        this.simpleitemscroller$lastMouseY = click.y();
+        this.simpleitemscroller$lastMouseX = event.x();
+        this.simpleitemscroller$lastMouseY = event.y();
         this.simpleitemscroller$hasLastMouse = true;
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"))
-    private void simpleitemscroller$onMouseReleased(Click click, CallbackInfoReturnable<Boolean> cir) {
-        this.simpleitemscroller$sampleFrame(click.x(), click.y());
+    private void simpleitemscroller$onMouseReleased(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
+        this.simpleitemscroller$sampleFrame(event.x(), event.y());
         ItemScroller.onMouseReleased(this::simpleitemscroller$quickMove);
         this.simpleitemscroller$hasLastMouse = false;
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void simpleitemscroller$onRender(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void simpleitemscroller$onRender(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         this.simpleitemscroller$sampleFrame(mouseX, mouseY);
     }
 
@@ -86,7 +86,7 @@ public abstract class HandledScreenMixin {
             double progress = (double) i / steps;
             double sampleX = startX + distanceX * progress;
             double sampleY = startY + distanceY * progress;
-            ItemScroller.onFrame(MinecraftClient.getInstance(), this.handler, this.simpleitemscroller$getSlotAt(sampleX, sampleY), this::simpleitemscroller$quickMove);
+            ItemScroller.onFrame(Minecraft.getInstance(), this.menu, this.simpleitemscroller$getSlotAt(sampleX, sampleY), this::simpleitemscroller$quickMove);
         }
         this.simpleitemscroller$lastMouseX = mouseX;
         this.simpleitemscroller$lastMouseY = mouseY;
@@ -95,6 +95,6 @@ public abstract class HandledScreenMixin {
 
     @Unique
     private void simpleitemscroller$quickMove(Slot slot) {
-        this.onMouseClick(slot, slot.id, 0, SlotActionType.QUICK_MOVE);
+        this.slotClicked(slot, slot.index, 0, ContainerInput.QUICK_MOVE);
     }
 }
